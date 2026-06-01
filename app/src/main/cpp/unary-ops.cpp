@@ -1,4 +1,10 @@
 #include "unary-ops.h"
+#include "binary-ops.h"
+#include "ggml-impl.h"
+
+#include <cmath>
+#include <cstdio>
+#include <utility>
 
 static inline float op_abs(float x) {
     return fabsf(x);
@@ -334,4 +340,3 @@ void ggml_compute_forward_xielu(const ggml_compute_params * params, ggml_tensor 
 
     unary_op_functor(params, dst, xielu_op_params);
 }
-
