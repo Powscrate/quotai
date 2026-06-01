@@ -64,6 +64,7 @@ add_library(${PROJECT_NAME} SHARED
     traits.cpp
     unary-ops.cpp
     hbm.cpp
+    spine_mem_pool.cpp
 )
 
 # Inclusion du dossier courant pour trouver les fichiers .h pour le projet
