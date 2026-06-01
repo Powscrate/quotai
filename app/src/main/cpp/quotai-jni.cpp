@@ -7,6 +7,8 @@
 #include <thread>
 #include <android/log.h>
 
+#include "llama.h"
+
 #define LOG_TAG "QuotAI_JNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
@@ -68,65 +70,34 @@
  * ============================================================================
  */
 
-
-// Native representation of llama.cpp context lifecycle structure
+// Structure native pour gérer le cycle de vie de llama.cpp
 struct LlamaContext {
     std::string model_path;
-    int context_size;
-    bool low_mem;
-    int thread_count;
-    uint32_t gguf_version;
-    uint64_t tensor_count;
-    uint64_t kv_count;
     llama_model* model = nullptr;
     llama_context* ctx = nullptr;
+
+    ~LlamaContext() {
+        if (ctx) {
+            llama_free(ctx);
+            ctx = nullptr;
+        }
+        if (model) {
+            llama_model_free(model);
+            model = nullptr;
+        }
+    }
 };
 
-// 1. GGUF File Parsing & Verification
-bool validate_gguf_file(const char* filepath, uint32_t& version, uint64_t& tensor_count, uint64_t& kv_count) {
-    FILE* file = fopen(filepath, "rb");
-    if (!file) {
-        LOGE("validate_gguf_file - Failed to open file path: %s", filepath);
-        return false;
+// Helper pour ajouter des tokens au batch
+static void batch_add(struct llama_batch & batch, llama_token id, llama_pos pos, const std::vector<llama_seq_id> & seq_ids, bool logits) {
+    batch.token[batch.n_tokens] = id;
+    batch.pos[batch.n_tokens]   = pos;
+    batch.n_seq_id[batch.n_tokens] = seq_ids.size();
+    for (size_t i = 0; i < seq_ids.size(); ++i) {
+        batch.seq_id[batch.n_tokens][i] = seq_ids[i];
     }
-    
-    char magic[4];
-    if (fread(magic, 1, 4, file) != 4) {
-        fclose(file);
-        return false;
-    }
-    
-    if (magic[0] != 'G' || magic[1] != 'G' || magic[2] != 'U' || magic[3] != 'F') {
-        LOGW("validate_gguf_file - Invalid file magic: %c%c%c%c", magic[0], magic[1], magic[2], magic[3]);
-        fclose(file);
-        return false;
-    }
-    
-    if (fread(&version, sizeof(uint32_t), 1, file) != 1) {
-        fclose(file);
-        return false;
-    }
-    
-    if (version < 1 || version > 3) {
-        LOGW("validate_gguf_file - Unsupported GGUF Format version: %u", version);
-        fclose(file);
-        return false;
-    }
-    
-    if (fread(&tensor_count, sizeof(uint64_t), 1, file) != 1) {
-        fclose(file);
-        return false;
-    }
-    
-    if (fread(&kv_count, sizeof(uint64_t), 1, file) != 1) {
-        fclose(file);
-        return false;
-    }
-    
-    fclose(file);
-    LOGI("validate_gguf_file - GGUF signature is valid. Version=%d, Tensors=%llu, KVCount=%llu", 
-         version, (unsigned long long)tensor_count, (unsigned long long)kv_count);
-    return true;
+    batch.logits[batch.n_tokens] = logits;
+    batch.n_tokens++;
 }
 
 extern "C" {
@@ -139,46 +110,57 @@ Java_com_example_llama_LlamaCpp_loadModelNative(
         jstring path,
         jint context_size,
         jboolean low_mem) {
-    
+
+    static bool backend_initialized = false;
+    if (!backend_initialized) {
+        llama_backend_init();
+        backend_initialized = true;
+        LOGI("loadModelNative - llama.cpp backend initialisé.");
+    }
+
     if (path == nullptr) {
         LOGE("loadModelNative - Model path argument is null.");
         return 0;
     }
 
     const char *native_path = env->GetStringUTFChars(path, nullptr);
-    LOGI("loadModelNative - Verifying external GGUF file integrity at path '%s'", native_path);
+    LOGI("loadModelNative - Chargement du modèle : %s", native_path);
 
-    uint32_t gguf_version = 0;
-    uint64_t tensor_count = 0;
-    uint64_t kv_count = 0;
+    // 1. Paramètres du modèle
+    auto model_params = llama_model_default_params();
+    model_params.use_mmap = true; 
 
-    // Validate GGUF structures
-    if (!validate_gguf_file(native_path, gguf_version, tensor_count, kv_count)) {
-        LOGE("loadModelNative - GGUF Header validation failed for: %s", native_path);
+    // 2. Chargement du modèle
+    llama_model * model = llama_model_load_from_file(native_path, model_params);
+    if (!model) {
+        LOGE("loadModelNative - Impossible de charger le modèle.");
         env->ReleaseStringUTFChars(path, native_path);
-        return 0; // Returning 0 triggers safe error responses on Kotlin UI layout
+        return 0;
     }
 
-    // Allocate llama context
+    // 3. Paramètres du contexte
+    auto ctx_params = llama_context_default_params();
+    ctx_params.n_ctx = context_size;
+    ctx_params.n_threads = std::thread::hardware_concurrency();
+    if (low_mem) {
+        ctx_params.n_threads = std::max(1, (int)ctx_params.n_threads / 2);
+    }
+
+    // 4. Création du contexte
+    llama_context * ctx_llama = llama_init_from_model(model, ctx_params);
+    if (!ctx_llama) {
+        LOGE("loadModelNative - Impossible de créer le contexte.");
+        llama_model_free(model);
+        env->ReleaseStringUTFChars(path, native_path);
+        return 0;
+    }
+
     LlamaContext* ctx = new LlamaContext();
     ctx->model_path = std::string(native_path);
-    ctx->context_size = context_size;
-    ctx->low_mem = low_mem;
-    ctx->gguf_version = gguf_version;
-    ctx->tensor_count = tensor_count;
-    ctx->kv_count = kv_count;
+    ctx->model = model;
+    ctx->ctx = ctx_llama;
 
-    // Dynamic core allocation logic:
-    // Redmi Note 3 / low-end devices have 4 small power-saving cores. Bound threads to 2 to prevent starvation of the UI main thread.
-    unsigned int hardware_threads = std::thread::hardware_concurrency();
-    if (low_mem) {
-        ctx->thread_count = (hardware_threads > 2) ? 2 : 1;
-    } else {
-        ctx->thread_count = (hardware_threads > 4) ? 4 : (hardware_threads > 1 ? hardware_threads - 1 : 1);
-    }
-
-    LOGI("loadModelNative - Successfully loaded local GGUF memory context: address=0x%llX, n_ctx=%d, threads=%d, low_mem=%d", 
-         (unsigned long long)ctx, ctx->context_size, ctx->thread_count, ctx->low_mem);
+    LOGI("loadModelNative - Succès : address=0x%llX", (unsigned long long)ctx);
 
     env->ReleaseStringUTFChars(path, native_path);
     return reinterpret_cast<jlong>(ctx);
@@ -198,22 +180,9 @@ Java_com_example_llama_LlamaCpp_unloadModelNative(
     LlamaContext* ctx = reinterpret_cast<LlamaContext*>(ctx_address);
     LOGI("unloadModelNative - Unloading GGUF llama structures from native heap (address 0x%llX)", (unsigned long long)ctx);
     
-    // Deallocate the representation safely
     delete ctx;
     
     LOGI("unloadModelNative - Native heap released. Memory isolation successful.");
-}
-
-// Helper simple pour ajouter des tokens au batch sans dépendre de common.h
-static void batch_add(struct llama_batch & batch, llama_token id, llama_pos pos, const std::vector<llama_seq_id> & seq_ids, bool logits) {
-    batch.token[batch.n_tokens] = id;
-    batch.pos[batch.n_tokens]   = pos;
-    batch.n_seq_id[batch.n_tokens] = seq_ids.size();
-    for (size_t i = 0; i < seq_ids.size(); ++i) {
-        batch.seq_id[batch.n_tokens][i] = seq_ids[i];
-    }
-    batch.logits[batch.n_tokens] = logits;
-    batch.n_tokens++;
 }
 
 // EXPOSED JNI METHOD FOR STREAMING GENERATION (TOKEN BY TOKEN CALLBACK BRIDGE)
@@ -243,10 +212,11 @@ Java_com_example_llama_LlamaCpp_generateNative(
     env->ReleaseStringUTFChars(prompt, native_prompt);
 
     // 1. Tokenisation
+    auto vocab = llama_model_get_vocab(ctx->model);
     std::vector<llama_token> tokens_list(prompt_str.size() + 2);
-    int n_tokens = llama_tokenize(ctx->model, prompt_str.c_str(), prompt_str.size(), 
+    int n_tokens = llama_tokenize(vocab, prompt_str.c_str(), prompt_str.size(), 
                                  tokens_list.data(), tokens_list.size(), true, true);
-    if (n_tokens < 0) return env->NewStringUTF("Erreur tokenisation");
+    if (n_tokens < 0) return env->NewStringUTF("");
     tokens_list.resize(n_tokens);
 
     // 2. Initialisation du Batch
@@ -258,30 +228,28 @@ Java_com_example_llama_LlamaCpp_generateNative(
     // 3. Setup Callback
     jclass clazz = env->FindClass("com/example/llama/LlamaCpp");
     jmethodID on_token_received_mid = clazz ? env->GetStaticMethodID(clazz, "onTokenReceived", "(Ljava/lang/String;)V") : nullptr;
+    
+    // Setup Sampler (Greedy)
+    struct llama_sampler * smpl = llama_sampler_init_greedy();
 
     // 4. Boucle d'inférence
     std::string full_res = "";
     int n_cur = tokens_list.size();
     int n_decode = 0;
 
-    while (n_decode < max_tokens) {
+    while (n_decode < max_tokens && n_cur < llama_n_ctx(ctx->ctx)) {
         if (llama_decode(ctx->ctx, batch) != 0) break;
         
         llama_batch_clear(batch);
-        auto * logits = llama_get_logits_ith(ctx->ctx, batch.n_tokens - 1);
-        auto n_vocab = llama_n_vocab(ctx->model);
 
-        std::vector<llama_token_data> cand;
-        cand.reserve(n_vocab);
-        for (llama_token id = 0; id < n_vocab; id++) cand.push_back({id, logits[id], 0.0f});
-        
-        llama_token_data_array cand_p = { cand.data(), cand.size(), false };
-        const llama_token new_id = llama_sample_token_greedy(ctx->ctx, &cand_p);
+        // Sampling
+        const llama_token new_id = llama_sampler_sample(smpl, ctx->ctx, -1);
 
-        if (new_id == llama_token_eos(ctx->model)) break;
+        // Fin de génération ?
+        if (llama_vocab_is_eog(vocab, new_id)) break;
 
         char buf[128];
-        int n = llama_token_to_piece(ctx->model, new_id, buf, sizeof(buf));
+        int n = llama_token_to_piece(vocab, new_id, buf, sizeof(buf), 0, true);
         if (n > 0) {
             std::string piece(buf, n);
             full_res += piece;
@@ -297,6 +265,7 @@ Java_com_example_llama_LlamaCpp_generateNative(
     }
 
     llama_batch_free(batch);
+    llama_sampler_free(smpl);
     return env->NewStringUTF(full_res.c_str());
 }
 
