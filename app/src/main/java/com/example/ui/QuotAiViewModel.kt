@@ -33,7 +33,10 @@ data class ModelsUiState(
     val activeModelPath: String? = null,
     val isLowMemoryMode: Boolean = true,
     val isModelLoaded: Boolean = false,
-    val selectedModelName: String? = null
+    val selectedModelName: String? = null,
+    val isDownloading: Boolean = false,
+    val downloadProgress: Float = 0f,
+    val downloadError: String? = null
 )
 
 class QuotAiViewModel(application: Application) : AndroidViewModel(application) {
@@ -280,6 +283,38 @@ class QuotAiViewModel(application: Application) : AndroidViewModel(application) 
                     _generateState.update { it.copy(lastGeneratedQuote = null) }
                 }
                 refreshModelsList()
+            }
+        }
+    }
+
+    fun downloadModel(url: String, fileName: String) {
+        viewModelScope.launch {
+            _modelsState.update { 
+                it.copy(
+                    isDownloading = true, 
+                    downloadProgress = 0f, 
+                    downloadError = null 
+                ) 
+            }
+            try {
+                val downloadedFile = modelRepository.downloadModel(url, fileName) { progress ->
+                    _modelsState.update { it.copy(downloadProgress = progress) }
+                }
+                _modelsState.update { 
+                    it.copy(
+                        isDownloading = false,
+                        downloadProgress = 1.0f
+                    ) 
+                }
+                loadGgufModel(downloadedFile)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed downloading GGUF model", e)
+                _modelsState.update {
+                    it.copy(
+                        isDownloading = false,
+                        downloadError = e.localizedMessage ?: "Erreur de réseau ou espace stockage saturé."
+                    )
+                }
             }
         }
     }

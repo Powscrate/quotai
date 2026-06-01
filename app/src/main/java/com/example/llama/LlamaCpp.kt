@@ -125,7 +125,7 @@ object LlamaCpp {
             throw IllegalStateException("Aucun modèle GGUF n'est actuellement chargé.")
         }
 
-        val systemPrompt = "You are QuotAI, a quote generation engine. You write ONLY in natural French. Each output must be a single short quote (max 1 sentence). Style: deep, human, motivational or reflective. Avoid clichés. Do not explain."
+        val systemPrompt = "Tu es un générateur de citations inspirantes. Écris EXCLUSIVEMENT en français naturel. Chaque sortie doit être une seule citation courte inspirante (maximum une phrase). Style: profond, humain, motivant ou réfléchi. Évite les clichés et n'explique pas ta réponse."
         val userPrompt = if (isRegenSimilar && similarText != null) {
             "Formule une citation similaire à celle-ci dans le style d'écriture de la catégorie $category: '$similarText'"
         } else {

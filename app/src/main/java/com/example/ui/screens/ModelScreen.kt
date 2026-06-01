@@ -40,26 +40,11 @@ fun ModelScreen(
 ) {
     val modelsState by viewModel.modelsState.collectAsState()
     var hfUrlInput by remember { mutableStateOf("") }
-    var isSimulatingDownload by remember { mutableStateOf(false) }
-    var simulationProgress by remember { mutableStateOf(0f) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { viewModel.importModel(it) }
-    }
-
-    // Coroutine effect for downloaded simulation triggers
-    LaunchedEffect(isSimulatingDownload) {
-        if (isSimulatingDownload) {
-            simulationProgress = 0f
-            while (simulationProgress < 1.0f) {
-                kotlinx.coroutines.delay(200)
-                simulationProgress += 0.05f
-            }
-            isSimulatingDownload = false
-            // Complete simulation with a user-friendly error or fallback since we don't mock servers
-        }
     }
 
     LazyColumn(
@@ -164,10 +149,10 @@ fun ModelScreen(
             }
         }
 
-        // Section: Download placeholder screen integration
+        // Section: Real GGUF model download options
         item {
             Text(
-                text = "TÉLÉCHARGER VIA ADRESSE URL (TUTORIEL)",
+                text = "TÉLÉCHARGER DES MODÈLES SÉLECTIONNÉS (OFFLINE)",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MutedText,
@@ -176,6 +161,24 @@ fun ModelScreen(
         }
 
         item {
+            val presetModels = listOf(
+                Triple(
+                    "SmolLM 135M (Recommandé Low-RAM)",
+                    "https://huggingface.co/second-state/SmolLM-135M-Instruct-GGUF/resolve/main/SmolLM-135M-Instruct-Q4_K_M.gguf",
+                    "SmolLM_135M_Instruct_Q4_K_M.gguf"
+                ),
+                Triple(
+                    "Qwen 0.5B Chat (Rapide & Intelligent)",
+                    "https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1.5-0.5b-chat-q2_k.gguf",
+                    "Qwen_0.5B_Chat_Q2_K.gguf"
+                ),
+                Triple(
+                    "DanLa 1.1B (Français Avancé)",
+                    "https://huggingface.co/TheBloke/DanLa-1.1B-GGUF/resolve/main/DanLa-1.1B-Q4_K_M.gguf",
+                    "DanLa_1.1B_Q4_K_M.gguf"
+                )
+            )
+
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = SpaceCard),
@@ -184,24 +187,73 @@ fun ModelScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "HuggingFace Hub Downloader",
+                        text = "Téléchargement direct de modèles d'IA",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Collez l'adresse de téléchargement d'un modèle GGUF (ex: huggingface.co/.../resolve/main/...gguf) pour l'installer directement.",
-                        fontSize = 12.sp,
-                        color = MutedText
+                        text = "Choisissez l'un de nos modèles présélectionnés ultra-légers pour débuter instantanément avec llama.cpp hors-ligne, ou collez une adresse URL personnalisée ci-dessous.",
+                        fontSize = 11.sp,
+                        color = MutedText,
+                        lineHeight = 15.sp
                     )
 
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    presetModels.forEach { (name, url, file) ->
+                        OutlinedButton(
+                            onClick = { viewModel.downloadModel(url, file) },
+                            enabled = !modelsState.isDownloading && !modelsState.isImporting,
+                            border = BorderStroke(1.dp, VelvetIndigo.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudDownload,
+                                        contentDescription = null,
+                                        tint = CyanTech,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(name, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Text(
+                                    text = if (file.contains("135M")) "90 Mo" else if (file.contains("0.5B")) "350 Mo" else "730 Mo",
+                                    fontSize = 10.sp,
+                                    color = CyanTech,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = SurfaceBorder, thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Adresse URL GGUF Personnalisée",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     TextField(
                         value = hfUrlInput,
                         onValueChange = { hfUrlInput = it },
-                        placeholder = { Text("https://huggingface.co/...", color = MutedText, fontSize = 12.sp) },
+                        placeholder = { Text("https://huggingface.co/...", color = MutedText, fontSize = 11.sp) },
                         colors = TextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
@@ -214,36 +266,66 @@ fun ModelScreen(
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .height(48.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Button(
-                        onClick = { isSimulatingDownload = true },
-                        enabled = hfUrlInput.isNotBlank() && !isSimulatingDownload,
+                        onClick = {
+                            val detectedFileName = hfUrlInput.substringAfterLast("/").substringBefore("?").ifBlank { "custom_model.gguf" }
+                            val cleanFileName = if (detectedFileName.endsWith(".gguf")) detectedFileName else "$detectedFileName.gguf"
+                            viewModel.downloadModel(hfUrlInput, cleanFileName)
+                        },
+                        enabled = hfUrlInput.isNotBlank() && !modelsState.isDownloading && !modelsState.isImporting,
                         colors = ButtonDefaults.buttonColors(containerColor = VelvetIndigo),
+                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("TÉLÉCHARGER ET INSTALLER", fontWeight = FontWeight.Bold)
+                        Text("TÉLÉCHARGER URL PERSONNALISÉE", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
 
-                    if (isSimulatingDownload) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LinearProgressIndicator(
-                            progress = { simulationProgress },
-                            color = VelvetIndigo,
-                            trackColor = DarkGrey,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    // Progress reporting
+                    if (modelsState.isDownloading) {
+                        val progress = modelsState.downloadProgress
+                        val pct = if (progress >= 0f) "${(progress * 100).toInt()}%" else "Téléchargement..."
+                        Spacer(modifier = Modifier.height(14.dp))
+                        
+                        if (progress >= 0f) {
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                color = CyanTech,
+                                trackColor = DarkGrey,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            LinearProgressIndicator(
+                                color = CyanTech,
+                                trackColor = DarkGrey,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Connexion au dépôt distant...", fontSize = 10.sp, color = MutedText)
-                            Text("${(simulationProgress * 100).toInt()}%", fontSize = 10.sp, color = VelvetIndigo, fontWeight = FontWeight.Bold)
+                            Text("Téléchargement du fichier de tenseurs GGUF...", fontSize = 11.sp, color = MutedText)
+                            Text(pct, fontSize = 11.sp, color = CyanTech, fontWeight = FontWeight.Bold)
                         }
+                    }
+
+                    modelsState.downloadError?.let { err ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Erreur: $err",
+                            color = SoftRed,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }

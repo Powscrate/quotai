@@ -101,6 +101,57 @@ class ModelRepository(val context: Context) {
         return file.delete()
     }
 
+    suspend fun downloadModel(
+        urlString: String,
+        targetFileName: String,
+        onProgress: (Float) -> Unit
+    ): File = withContext(Dispatchers.IO) {
+        val targetDir = getModelsDir()
+        val targetFile = File(targetDir, targetFileName)
+        
+        if (targetFile.exists()) {
+            targetFile.delete()
+        }
+
+        val url = java.net.URL(urlString)
+        val connection = url.openConnection() as java.net.HttpURLConnection
+        connection.connectTimeout = 30000
+        connection.readTimeout = 30000
+        connection.connect()
+
+        if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
+            throw java.io.IOException("Le serveur a retourné le code : ${connection.responseCode} ${connection.responseMessage}")
+        }
+
+        val fileLength = connection.contentLengthLong
+        connection.inputStream.use { inputStream ->
+            java.io.FileOutputStream(targetFile).use { outputStream ->
+                val buffer = ByteArray(1024 * 1024) // 1MB buffer
+                var bytesRead: Int
+                var totalBytesRead = 0L
+                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                    outputStream.write(buffer, 0, bytesRead)
+                    totalBytesRead += bytesRead
+                    if (fileLength > 0) {
+                        onProgress(totalBytesRead.toFloat() / fileLength.toFloat())
+                    } else {
+                        onProgress(-1f)
+                    }
+                }
+            }
+        }
+
+        // Validate GGUF integrity right away
+        try {
+            GgufMetadataReader.readMetadata(targetFile)
+        } catch (e: Exception) {
+            targetFile.delete() // Cleanup automatically!
+            throw IllegalArgumentException("Fichier GGUF téléchargé corrompu ou invalide : ${e.message}")
+        }
+
+        return@withContext targetFile
+    }
+
     fun getActiveModelPath(): String? {
         return sharedPrefs.getString(KEY_ACTIVE_MODEL, null)
     }
