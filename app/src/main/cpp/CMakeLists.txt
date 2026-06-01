@@ -20,6 +20,9 @@ add_library(${PROJECT_NAME} SHARED
     ggml-alloc.c
     ggml-backend.cpp
     ggml-quants.c
+    gguf.cpp
+    ggml-cpu.cpp
+    ggml-opt.cpp
 )
 
 # Inclusion du dossier courant pour trouver les fichiers .h
