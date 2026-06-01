@@ -15,14 +15,23 @@ endif()
 # On liste ici quotai-jni.cpp ET les fichiers sources de llama.cpp que tu vas ajouter
 add_library(${PROJECT_NAME} SHARED
     quotai-jni.cpp
+    llama.h
     llama.cpp
+    ggml.h
     ggml.c
+    ggml-alloc.h
     ggml-alloc.c
+    ggml-backend.h
     ggml-backend.cpp
+    ggml-quants.h
     ggml-quants.c
+    gguf.h
     gguf.cpp
+    ggml-cpu.h
     ggml-cpu.cpp
+    ggml-opt.h
     ggml-opt.cpp
+    ggml-common.h
 )
 
 # Inclusion du dossier courant pour trouver les fichiers .h

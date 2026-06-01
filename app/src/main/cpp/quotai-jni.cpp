@@ -7,6 +7,7 @@
 #include <thread>
 #include <android/log.h>
 
+#include "ggml-cpu.h"
 #include "llama.h"
 
 #define LOG_TAG "QuotAI_JNI"
@@ -240,7 +241,7 @@ Java_com_example_llama_LlamaCpp_generateNative(
     while (n_decode < max_tokens && n_cur < llama_n_ctx(ctx->ctx)) {
         if (llama_decode(ctx->ctx, batch) != 0) break;
         
-        llama_batch_clear(batch);
+        batch.n_tokens = 0;
 
         // Sampling
         const llama_token new_id = llama_sampler_sample(smpl, ctx->ctx, -1);
