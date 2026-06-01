@@ -7,7 +7,6 @@
 #include <thread>
 #include <android/log.h>
 
-#include "ggml-cpu.h"
 #include "llama.h"
 
 #define LOG_TAG "QuotAI_JNI"
