@@ -45,7 +45,6 @@ add_library(${PROJECT_NAME} SHARED
     llama-version.cpp
     gguf.cpp
     ggml-cpu.cpp
-    quants.c
     ggml-cpu.c
     ggml-opt.cpp
     ggml-threading.cpp
