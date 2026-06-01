@@ -38,14 +38,15 @@ add_library(${PROJECT_NAME} SHARED
     unicode.cpp
     unicode-data.cpp
     ggml.c
+    ggml-quants.c
     ggml-alloc.c
     ggml-backend.cpp
-    # ggml-backend-cuda.cpp
-    # ggml-backend-metal.cpp
+    ggml-backend-reg.cpp
     llama-version.cpp
-    ggml-quants.c
     gguf.cpp
     ggml-cpu.cpp
+    quants.c
+    ggml-cpu.c
     ggml-opt.cpp
     ggml-threading.cpp
     binary-ops.cpp
