@@ -25,8 +25,8 @@ jobs:
       - name: Install NDK
         uses: android-actions/setup-android@v3
         with:
-          # Matches the version mentioned in your JNI documentation comments
-          ndk-version: '25.1.8937393'
+          # Utilisation de la version détectée dans les logs de l'utilisateur
+          ndk-version: '28.2.13676358'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew

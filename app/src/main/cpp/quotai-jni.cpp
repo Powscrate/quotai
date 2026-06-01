@@ -128,7 +128,7 @@ Java_com_example_llama_LlamaCpp_loadModelNative(
 
     // 1. Paramètres du modèle
     auto model_params = llama_model_default_params();
-    model_params.use_mmap = true; 
+    model_params.use_mmap = true;
 
     // 2. Chargement du modèle
     llama_model * model = llama_model_load_from_file(native_path, model_params);
@@ -239,7 +239,8 @@ Java_com_example_llama_LlamaCpp_generateNative(
 
     while (n_decode < max_tokens && n_cur < llama_n_ctx(ctx->ctx)) {
         if (llama_decode(ctx->ctx, batch) != 0) break;
-        
+
+        // On vide le batch pour le prochain jeton (standard API llama.cpp)
         batch.n_tokens = 0;
 
         // Sampling

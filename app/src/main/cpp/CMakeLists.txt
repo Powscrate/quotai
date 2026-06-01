@@ -23,15 +23,20 @@ add_library(${PROJECT_NAME} SHARED
     gguf.cpp
     ggml-cpu.cpp
     ggml-opt.cpp
+    # Fichiers indispensables pour les versions récentes de llama.cpp
+    # Si vous les avez téléchargés, ils doivent être listés ici :
+    # llama-vocab.cpp
+    # llama-grammar.cpp
+    # llama-sampling.cpp
+    # unicode.cpp
+    # unicode-data.cpp
 )
 
 # Inclusion du dossier courant pour trouver les fichiers .h
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../..
-    ${CMAKE_CURRENT_SOURCE_DIR}/ggml
-)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+# Force la recherche des headers dans le dossier courant pour tous les fichiers
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # Liens vers les bibliothèques Android nécessaires
 target_link_libraries(${PROJECT_NAME}
