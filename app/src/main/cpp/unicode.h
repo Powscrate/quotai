@@ -109,3 +109,5 @@ uint32_t unicode_tolower(uint32_t cpt);
 bool unicode_cpt_is_han(uint32_t cpt);
 
 std::vector<std::string> unicode_regex_split(const std::string & text, const std::vector<std::string> & regex_exprs, bool byte_encode = true);
+
+bool common_utf8_is_complete(const std::string & piece);

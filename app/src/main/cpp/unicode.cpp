@@ -1406,3 +1406,22 @@ std::vector<std::string> unicode_regex_split(const std::string & text, const std
 
     return bpe_words;
 }
+
+bool common_utf8_is_complete(const std::string & piece) {
+    if (piece.empty()) {
+        return true;
+    }
+
+    size_t last_start = piece.size();
+    while (last_start > 0) {
+        last_start--;
+        uint8_t byte = static_cast<uint8_t>(piece[last_start]);
+        if ((byte & 0xC0) != 0x80) {
+            // Found the start byte of the last character
+            size_t expected_len = unicode_len_utf8(piece[last_start]);
+            size_t actual_len = piece.size() - last_start;
+            return actual_len >= expected_len;
+        }
+    }
+    return false;
+}
