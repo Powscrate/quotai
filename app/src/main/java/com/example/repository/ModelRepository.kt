@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.util.Locale
 
 data class ModelInfo(
     val name: String,
@@ -47,7 +48,7 @@ class ModelRepository(val context: Context) {
                 val meta = GgufMetadataReader.readMetadata(file)
                 Triple(meta.name, meta.quantization, meta.architecture)
             } catch (e: Exception) {
-                Triple(file.nameWithoutExtension.capitalize(), "Inconnue", "llama")
+                Triple(file.nameWithoutExtension.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, "Inconnue", "llama")
             }
 
             ModelInfo(
