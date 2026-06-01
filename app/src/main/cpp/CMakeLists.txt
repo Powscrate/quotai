@@ -16,8 +16,17 @@ endif()
 add_library(${PROJECT_NAME} SHARED
     quotai-jni.cpp
     llama.cpp
+    llama-model-loader.cpp
+    llama-model-saver.cpp
+    llama-adapter.cpp
+    llama-chat.cpp
     llama-model.cpp
     llama-context.cpp
+    llama-cparams.cpp
+    llama-impl.cpp
+    llama-graph.cpp
+    llama-io.cpp
+    llama-memory.cpp
     llama-mmap.cpp
     llama-batch.cpp
     llama-kv-cache.cpp
@@ -35,13 +44,30 @@ add_library(${PROJECT_NAME} SHARED
     gguf.cpp
     ggml-cpu.cpp
     ggml-opt.cpp
+    ggml-threading.cpp
+    ime.cpp
+    binary-ops.cpp
+    repack.cpp
+    common.cpp
+    ops.cpp
+    spine-mem-pool.cpp
+    vec.cpp
+    fit.cpp
+    log.cpp
+    sampling.cpp
+    reasoning-budget.cpp
+    speculative.cpp
+    ngram-cache.cpp
+    ngram-map.cpp
+    ngram-mod.cpp
+    ime_env.cpp
+    traits.cpp
+    unary-ops.cpp
+    hbm.cpp
 )
 
-# Inclusion du dossier courant pour trouver les fichiers .h
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
-# Force la recherche des headers dans le dossier courant pour tous les fichiers
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+# Inclusion du dossier courant pour trouver les fichiers .h pour le projet
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Liens vers les bibliothèques Android nécessaires
 target_link_libraries(${PROJECT_NAME}
