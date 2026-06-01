@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="QuotAI • Hors-ligne"
+            android:textColor="#10E0CE"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_quote_text"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="8dp"
+            android:text="« Le courage de l'esprit est l'ultime liberté de l'Homme. »"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="italic"
+            android:ellipsize="end"
+            android:maxLines="3"
+            android:gravity="center_vertical" />
+
+        <TextView
+            android:id="@+id/widget_footer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Appuyez pour ouvrir l'IA"
+            android:textColor="#78909C"
+            android:textSize="9sp"
+            android:gravity="right" />
+
+    </LinearLayout>
+</RelativeLayout>
