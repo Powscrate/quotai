@@ -48,7 +48,8 @@ class ModelRepository(val context: Context) {
                 val meta = GgufMetadataReader.readMetadata(file)
                 Triple(meta.name, meta.quantization, meta.architecture)
             } catch (e: Exception) {
-                val fallbackName = file.nameWithoutExtension.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                val rawName = file.nameWithoutExtension.ifBlank { "Modèle Inconnu" }
+                val fallbackName = rawName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                 Triple(fallbackName, "Inconnue", "llama")
             }
 

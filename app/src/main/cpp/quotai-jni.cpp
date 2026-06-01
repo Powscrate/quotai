@@ -78,83 +78,8 @@ struct LlamaContext {
     uint32_t gguf_version;
     uint64_t tensor_count;
     uint64_t kv_count;
-};
-
-// Generative templates that form coherent sentences of varied styles and layouts
-const std::vector<std::string> SENTENCE_TEMPLATES = {
-    "{S} {V} {A} {C} {E}",
-    "Rien ne {V} {C} comme {S} qui, {A}, {V} {C}.",
-    "C'est dans {C} que {S} {V} {A} {C} {E}",
-    "Quand {S} {V} {C}, la volonté humaine {V} {A} {C}.",
-    "Ce n'est pas {S} qui {V} {C}, mais c'est {S} qui {V} {A} {C}."
-};
-
-struct CategoryPool {
-    std::string category_name;
-    std::vector<std::string> subjects;
-    std::vector<std::string> verbs;
-    std::vector<std::string> adverbs;
-    std::vector<std::string> complements;
-    std::vector<std::string> endings;
-};
-
-const std::vector<CategoryPool> CATEGORIES = {
-    {
-        "motivation",
-        { "Le courage individuel", "La persévérance active", "L'acier de l'âme", "Chaque douleur surmontée", "La volonté intérieure", "La grandeur silencieuse" },
-        { "forge", "transforme", "repousse", "illumine", "façonne", "renforce", "transcende" },
-        { "silencieusement", "avec audace", "sans relâche", "magnifiquement", "profondément", "toujours" },
-        { "les obstacles du destin", "les épreuves de la vie", "nos doutes les plus obscurs", "le chemin vers les sommets", "les peurs de l'inconnu" },
-        { "pour qui refuse de s'avouer vaincu.", "car le revers n'est qu'un pas vers l'envol.", "sans jamais regarder en arrière.", "avec la ferveur du pionnier." }
-    },
-    {
-        "reflection",
-        { "Le silence de la nuit", "La solitude réfléchie", "La contemplation", "L'auto-analyse", "Le temps qui s'écoule", "La lucidité tranquille" },
-        { "révèle", "apaise", "interroge", "pénètre", "dévoile", "transcende", "éclaire" },
-        { "subtilement", "doucement", "clairement", "patiemment", "profondément", "naturellement" },
-        { "la fragilité de nos dogmes", "les mystères profonds du moi", "les vérités essentielles", "le tumulte inutile du monde", "la beauté passive de l'instant" },
-        { "pour s'ancrer dans l'éternité.", "dans le miroir secret de l'âme.", "qui nous guide vers la connaissance.", "loin du tumulte quotidien." }
-    },
-    {
-        "life",
-        { "Le voyage terrestre", "La vie humaine", "Chaque instant furtif", "Notre destinée", "La danse du temps", "L'existence profonde" },
-        { "enseigne", "dessine", "enrichit", "guide", "accueille", "célèbre", "équilibre" },
-        { "pleinement", "avec philosophie", "simplement", "toujours", "chaque jour", "fièrement" },
-        { "l'art complexe de l'abandon", "la maturité des épreuves", "l'élégance des imperfections", "les leçons discrètes du passé", "le fleuve indomptable des saisons" },
-        { "comme une œuvre en constante évolution.", "sans jamais regretter d'avoir vécu.", "qui donne une tessiture à notre récit.", "dans l'harmonie des choses." }
-    },
-    {
-        "focus",
-        { "La clarté d'esprit", "La concentration méthodique", "L'ancrage intérieur", "La discipline de fer", "La vision pure", "La rigueur" },
-        { "tranche", "dissipe", "aligne", "canalise", "oriente", "magnétise", "aiguise" },
-        { "avec précision", "obstinément", "immédiatement", "calmement", "avec force", "efficacement" },
-        { "la brume des pensées perdues", "toutes les distractions stériles", "notre potentiel enfoui", "le but ultime de notre quête", "l'énergie dispersée" },
-        { "sans jamais dévier du but.", "pour manifester ses intentions.", "avec la fulgurance d'un éclair.", "dans la parfaite maîtrise." }
-    },
-    {
-        "sadness",
-        { "La mélancolie douce", "L'absence ressentie", "La tristesse muette", "La solitude du soir", "La blessure du cœur", "La nostalgie" },
-        { "murmure", "adoucit", "purifie", "reconstruit", "libère", "apaise", "accompagne" },
-        { "délicatement", "lentement", "modestement", "souvent", "avec nostalgie", "humblement" },
-        { "le poids des vieux souvenirs", "les promesses non tenues", "les peines consolées de l'enfance", "une âme en quête de sérénité", "les pleurs invisibles" },
-        { "pour laisser poindre une lueur nouvelle.", "comme une pluie rafraîchissante sur l'été.", "qui cherche un écho intime.", "avec un infini respect." }
-    },
-    {
-        "dark",
-        { "L'abîme profond", "Le silence des ombres", "La part sombre", "La nuit noire", "La douleur secrète", "Le vide intérieur" },
-        { "défie", "engloutit", "révèle", "éveille", "repousse", "transperce", "sépare" },
-        { "farouchement", "dans l'obscurité", "implacablement", "sombrement", "au fond de soi", "secrètement" },
-        { "les monstres du doute", "l'illusion du néant absolu", "les instincts cachés", "les barrières du subconscient", "la froide vérité du monde" },
-        { "pour en extraire une lumière inextinguible.", "quand la réalité vacille sur ses bases.", "dans l'obscurité la plus sincère.", "avant le renouveau du jour." }
-    },
-    {
-        "success",
-        { "Le succès véritable", "L'excellence constante", "La victoire ultime", "L'effort inlassable", "La consécration", "La réussite pure" },
-        { "couronne", "exige", "pave", "éclaire", "satisfait", "honore", "développe" },
-        { "fièrement", "nécessairement", "parfaitement", "avec panache", "clairement", "glorieusement" },
-        { "les innombrables sacrifices consentis", "le chemin sinueux parcouru", "la persévérance inébranlable", "l'amour du travail bien accompli", "le courage d'oser" },
-        { "au sommet d'un long combat héroïque.", "comme la consécration logique de l'audace.", "sans craindre le mépris des sceptiques.", "dans la grandeur d'esprit." }
-    }
+    llama_model* model = nullptr;
+    llama_context* ctx = nullptr;
 };
 
 // 1. GGUF File Parsing & Verification
@@ -279,6 +204,18 @@ Java_com_example_llama_LlamaCpp_unloadModelNative(
     LOGI("unloadModelNative - Native heap released. Memory isolation successful.");
 }
 
+// Helper simple pour ajouter des tokens au batch sans dépendre de common.h
+static void batch_add(struct llama_batch & batch, llama_token id, llama_pos pos, const std::vector<llama_seq_id> & seq_ids, bool logits) {
+    batch.token[batch.n_tokens] = id;
+    batch.pos[batch.n_tokens]   = pos;
+    batch.n_seq_id[batch.n_tokens] = seq_ids.size();
+    for (size_t i = 0; i < seq_ids.size(); ++i) {
+        batch.seq_id[batch.n_tokens][i] = seq_ids[i];
+    }
+    batch.logits[batch.n_tokens] = logits;
+    batch.n_tokens++;
+}
+
 // EXPOSED JNI METHOD FOR STREAMING GENERATION (TOKEN BY TOKEN CALLBACK BRIDGE)
 JNIEXPORT jstring JNICALL
 Java_com_example_llama_LlamaCpp_generateNative(
@@ -305,132 +242,62 @@ Java_com_example_llama_LlamaCpp_generateNative(
     std::string prompt_str(native_prompt);
     env->ReleaseStringUTFChars(prompt, native_prompt);
 
-    LOGI("generateNative - Active inference cycle: Model='%s' | seeds=%lld | maxTokens=%d | LowRAM=%d", 
-         ctx->model_path.c_str(), (long long)seed, max_tokens, low_mem);
+    // 1. Tokenisation
+    std::vector<llama_token> tokens_list(prompt_str.size() + 2);
+    int n_tokens = llama_tokenize(ctx->model, prompt_str.c_str(), prompt_str.size(), 
+                                 tokens_list.data(), tokens_list.size(), true, true);
+    if (n_tokens < 0) return env->NewStringUTF("Erreur tokenisation");
+    tokens_list.resize(n_tokens);
 
-    // 1. Detect Category
-    std::string selected_category = "motivation";
-    for (const auto& cat : CATEGORIES) {
-        if (prompt_str.find(cat.category_name) != std::string::npos) {
-            selected_category = cat.category_name;
-            break;
-        }
+    // 2. Initialisation du Batch
+    llama_batch batch = llama_batch_init(std::max(n_tokens, max_tokens), 0, 1);
+    for (size_t i = 0; i < tokens_list.size(); ++i) {
+        batch_add(batch, tokens_list[i], i, {0}, i == tokens_list.size() - 1);
     }
 
-    // Treat non-english counterparts or category variations
-    if (prompt_str.find("réflexion") != std::string::npos || prompt_str.find("reflection") != std::string::npos) {
-        selected_category = "reflection";
-    } else if (prompt_str.find("vie") != std::string::npos || prompt_str.find("life") != std::string::npos) {
-        selected_category = "life";
-    } else if (prompt_str.find("tristesse") != std::string::npos || prompt_str.find("sadness") != std::string::npos) {
-        selected_category = "sadness";
-    } else if (prompt_str.find("sombre") != std::string::npos || prompt_str.find("dark") != std::string::npos) {
-        selected_category = "dark";
-    } else if (prompt_str.find("réussite") != std::string::npos || prompt_str.find("success") != std::string::npos) {
-        selected_category = "success";
-    }
-
-    CategoryPool pool = CATEGORIES[0];
-    for (const auto& cat : CATEGORIES) {
-        if (cat.category_name == selected_category) {
-            pool = cat;
-            break;
-        }
-    }
-
-    // 2. Setup High-Entropy Random seed
-    uint64_t dynamic_seed = seed + std::chrono::steady_clock::now().time_since_epoch().count();
-    std::mt19937 rand_engine(dynamic_seed);
-
-    // 3. Selection of grammatical sentence structure template
-    std::uniform_int_distribution<size_t> template_dist(0, SENTENCE_TEMPLATES.size() - 1);
-    std::string sentence_template = SENTENCE_TEMPLATES[template_dist(rand_engine)];
-
-    // 4. Random selects
-    std::uniform_int_distribution<size_t> sj_dist(0, pool.subjects.size() - 1);
-    std::uniform_int_distribution<size_t> vb_dist(0, pool.verbs.size() - 1);
-    std::uniform_int_distribution<size_t> av_dist(0, pool.adverbs.size() - 1);
-    std::uniform_int_distribution<size_t> cp_dist(0, pool.complements.size() - 1);
-    std::uniform_int_distribution<size_t> ed_dist(0, pool.endings.size() - 1);
-
-    std::string s_val = pool.subjects[sj_dist(rand_engine)];
-    std::string v_val = pool.verbs[vb_dist(rand_engine)];
-    std::string a_val = pool.adverbs[av_dist(rand_engine)];
-    std::string c_val = pool.complements[cp_dist(rand_engine)];
-    std::string e_val = pool.endings[ed_dist(rand_engine)];
-
-    std::string s2_val = pool.subjects[(sj_dist(rand_engine) + 1) % pool.subjects.size()];
-    std::string v2_val = pool.verbs[(vb_dist(rand_engine) + 1) % pool.verbs.size()];
-
-    std::string final_sentence = sentence_template;
-
-    auto replace_placeholder = [](std::string& str, const std::string& placeholder, const std::string& value) {
-        size_t start_pos = 0;
-        while ((start_pos = str.find(placeholder, start_pos)) != std::string::npos) {
-            str.replace(start_pos, placeholder.length(), value);
-            start_pos += value.length();
-        }
-    };
-
-    replace_placeholder(final_sentence, "{S}", s_val);
-    replace_placeholder(final_sentence, "{V}", v_val);
-    replace_placeholder(final_sentence, "{A}", a_val);
-    replace_placeholder(final_sentence, "{C}", c_val);
-    replace_placeholder(final_sentence, "{E}", e_val);
-
-    if (!s2_val.empty()) {
-        std::string s2_lower = s2_val;
-        if (s2_lower.length() > 0) {
-            s2_lower[0] = std::tolower(s2_lower[0]);
-        }
-        replace_placeholder(final_sentence, "{S}", s2_lower);
-    }
-    replace_placeholder(final_sentence, "{V}", v2_val);
-
-    // ========================================================================
-    // 📡 REAL TIME JNI STREAMING COALITION CALLBACK BRIDGE
-    // ========================================================================
+    // 3. Setup Callback
     jclass clazz = env->FindClass("com/example/llama/LlamaCpp");
-    jmethodID on_token_received_mid = nullptr;
-    if (clazz != nullptr) {
-        on_token_received_mid = env->GetStaticMethodID(clazz, "onTokenReceived", "(Ljava/lang/String;)V");
-    }
+    jmethodID on_token_received_mid = clazz ? env->GetStaticMethodID(clazz, "onTokenReceived", "(Ljava/lang/String;)V") : nullptr;
 
-    if (on_token_received_mid != nullptr) {
-        LOGI("generateNative - Callback resolved: onTokenReceived(). Streaming token emission initialized.");
+    // 4. Boucle d'inférence
+    std::string full_res = "";
+    int n_cur = tokens_list.size();
+    int n_decode = 0;
+
+    while (n_decode < max_tokens) {
+        if (llama_decode(ctx->ctx, batch) != 0) break;
         
-        // Split final sentence into word token blocks to emit live with thread preservation
-        std::vector<std::string> tokens;
-        std::string cur_token = "";
-        for (char c : final_sentence) {
-            if (c == ' ') {
-                if (!cur_token.empty()) {
-                    tokens.push_back(cur_token + " ");
-                    cur_token = "";
-                }
-            } else {
-                cur_token += c;
+        llama_batch_clear(batch);
+        auto * logits = llama_get_logits_ith(ctx->ctx, batch.n_tokens - 1);
+        auto n_vocab = llama_n_vocab(ctx->model);
+
+        std::vector<llama_token_data> cand;
+        cand.reserve(n_vocab);
+        for (llama_token id = 0; id < n_vocab; id++) cand.push_back({id, logits[id], 0.0f});
+        
+        llama_token_data_array cand_p = { cand.data(), cand.size(), false };
+        const llama_token new_id = llama_sample_token_greedy(ctx->ctx, &cand_p);
+
+        if (new_id == llama_token_eos(ctx->model)) break;
+
+        char buf[128];
+        int n = llama_token_to_piece(ctx->model, new_id, buf, sizeof(buf));
+        if (n > 0) {
+            std::string piece(buf, n);
+            full_res += piece;
+            if (on_token_received_mid) {
+                jstring jpiece = env->NewStringUTF(piece.c_str());
+                env->CallStaticVoidMethod(clazz, on_token_received_mid, jpiece);
+                env->DeleteLocalRef(jpiece);
             }
         }
-        if (!cur_token.empty()) {
-            tokens.push_back(cur_token);
-        }
 
-        // Live native streaming loop callback
-        for (const auto& token : tokens) {
-            jstring jtoken_str = env->NewStringUTF(token.c_str());
-            env->CallStaticVoidMethod(clazz, on_token_received_mid, jtoken_str);
-            env->DeleteLocalRef(jtoken_str); // CRITICAL: Avoid frame/global leak crash inside loops!
-
-            // Low-end RAM page optimization yield delay simulation
-            int delay_ms = low_mem ? 40 : 20;
-            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
-        }
-    } else {
-        LOGW("generateNative - JNI token callback method not found or failed to load. Returning full string directly.");
+        batch_add(batch, new_id, n_cur, {0}, true);
+        n_cur++; n_decode++;
     }
 
-    return env->NewStringUTF(final_sentence.c_str());
+    llama_batch_free(batch);
+    return env->NewStringUTF(full_res.c_str());
 }
 
 }
