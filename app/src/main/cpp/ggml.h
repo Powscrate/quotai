@@ -219,6 +219,14 @@
 #define GGML_QNT_VERSION        2    // bump this on quantization format changes
 #define GGML_QNT_VERSION_FACTOR 1000 // do not change this
 
+#ifndef GGML_VERSION
+#define GGML_VERSION "unknown"
+#endif
+
+#ifndef GGML_COMMIT
+#define GGML_COMMIT "unknown"
+#endif
+
 #define GGML_MAX_DIMS           4
 #define GGML_MAX_PARAMS         2048
 #define GGML_MAX_SRC            10
