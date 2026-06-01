@@ -65,6 +65,27 @@ struct utf8_parse_result {
     size_t bytes_consumed;
 };
 
+static utf8_parse_result common_parse_utf8_codepoint(const std::string & text, size_t offset) {
+    utf8_parse_result result;
+    result.status = utf8_parse_result::SUCCESS;
+    result.bytes_consumed = unicode_len_utf8(text[offset]);
+
+    if (offset + result.bytes_consumed > text.size()) {
+        result.status = utf8_parse_result::INCOMPLETE;
+        return result;
+    }
+
+    try {
+        size_t next_offset = offset;
+        result.codepoint = unicode_cpt_from_utf8(text, next_offset);
+        result.bytes_consumed = next_offset - offset;
+    } catch (...) {
+        result.status = utf8_parse_result::INVALID;
+    }
+
+    return result;
+}
+
 common_time_meas::common_time_meas(int64_t & t_acc, bool disable) : t_start_us(disable ? -1 : ggml_time_us()), t_acc(t_acc) {}
 
 common_time_meas::~common_time_meas() {
@@ -1569,7 +1590,7 @@ struct llama_context_params common_context_params_to_llama(const common_params &
     cparams.n_ctx             = params.n_ctx;
     cparams.n_seq_max         = params.n_parallel;
     cparams.n_rs_seq          = params.speculative.need_n_rs_seq();
-    cparams.n_outputs_max     = std::max(params.n_outputs_max, 0);
+    // cparams.n_outputs_max     = std::max(params.n_outputs_max, 0);
     cparams.n_batch           = params.n_batch;
     cparams.n_ubatch          = params.n_ubatch;
     cparams.n_threads         = params.cpuparams.n_threads;

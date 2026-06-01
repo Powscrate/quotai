@@ -1,4 +1,6 @@
 #include "binary-ops.h"
+#include "ggml-impl.h"
+#include "ggml-cpu-impl.h"
 
 #if defined(GGML_USE_ACCELERATE)
 #include <Accelerate/Accelerate.h>

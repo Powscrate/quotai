@@ -5,10 +5,6 @@
 #include <utility>
 #include <algorithm>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Table de conversion de types pour les opérations binaires
 template <typename T>
 struct type_conversion_table {
@@ -38,6 +34,10 @@ inline std::pair<int64_t, int64_t> get_thread_range(const struct ggml_compute_pa
     int64_t ir1 = std::min(ir0 + rows_per_thread, total_rows);
     return {ir0, ir1};
 }
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void ggml_compute_forward_add_non_quantized(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_sub(const struct ggml_compute_params * params, struct ggml_tensor * dst);
