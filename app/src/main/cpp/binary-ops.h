@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "ggml-impl.h"
 #include <type_traits>
 #include <utility>
 #include <algorithm>
