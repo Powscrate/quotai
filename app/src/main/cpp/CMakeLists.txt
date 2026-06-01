@@ -45,7 +45,6 @@ add_library(${PROJECT_NAME} SHARED
     ggml-cpu.cpp
     ggml-opt.cpp
     ggml-threading.cpp
-    ime.cpp
     binary-ops.cpp
     repack.cpp
     common.cpp
@@ -59,12 +58,19 @@ add_library(${PROJECT_NAME} SHARED
     ngram-cache.cpp
     ngram-map.cpp
     ngram-mod.cpp
-    ime_env.cpp
     traits.cpp
     unary-ops.cpp
     hbm.cpp
-    spine_mem_pool.cpp
 )
+
+# Ajout des fichiers RISC-V uniquement si l'architecture correspond
+if(ANDROID_ABI MATCHES "riscv64")
+    target_sources(${PROJECT_NAME} PRIVATE
+        ime.cpp
+        ime_env.cpp
+        spine_mem_pool.cpp
+    )
+endif()
 
 # Inclusion du dossier courant pour trouver les fichiers .h pour le projet
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -9,7 +9,8 @@
 
 namespace spacemit_kernels {
 
-constexpr auto div_round_up(auto up, auto down) {
+template <typename T>
+constexpr T div_round_up(T up, T down) {
     return (up + down - 1) / down;
 }
 

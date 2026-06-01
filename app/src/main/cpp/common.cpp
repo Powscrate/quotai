@@ -59,6 +59,12 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
+struct utf8_parse_result {
+    enum Status { SUCCESS, INVALID, INCOMPLETE } status;
+    uint32_t codepoint;
+    size_t bytes_consumed;
+};
+
 common_time_meas::common_time_meas(int64_t & t_acc, bool disable) : t_start_us(disable ? -1 : ggml_time_us()), t_acc(t_acc) {}
 
 common_time_meas::~common_time_meas() {
