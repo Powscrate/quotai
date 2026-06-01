@@ -141,7 +141,8 @@ Java_com_example_llama_LlamaCpp_loadModelNative(
     // 3. Paramètres du contexte
     auto ctx_params = llama_context_default_params();
     ctx_params.n_ctx = context_size;
-    ctx_params.n_threads = std::thread::hardware_concurrency();
+    ctx_params.n_batch = context_size;
+    ctx_params.n_threads = (int32_t)std::thread::hardware_concurrency();
     if (low_mem) {
         ctx_params.n_threads = std::max(1, (int)ctx_params.n_threads / 2);
     }
@@ -240,8 +241,7 @@ Java_com_example_llama_LlamaCpp_generateNative(
     while (n_decode < max_tokens && n_cur < llama_n_ctx(ctx->ctx)) {
         if (llama_decode(ctx->ctx, batch) != 0) break;
 
-        // On vide le batch pour le prochain jeton (standard API llama.cpp)
-        batch.n_tokens = 0;
+        batch.n_tokens = 0; // Réinitialisation du batch pour le token suivant
 
         // Sampling
         const llama_token new_id = llama_sampler_sample(smpl, ctx->ctx, -1);

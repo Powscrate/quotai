@@ -16,6 +16,18 @@ endif()
 add_library(${PROJECT_NAME} SHARED
     quotai-jni.cpp
     llama.cpp
+    llama-model.cpp
+    llama-context.cpp
+    llama-mmap.cpp
+    llama-batch.cpp
+    llama-kv-cache.cpp
+    llama-hparams.cpp
+    llama-arch.cpp
+    llama-vocab.cpp
+    llama-grammar.cpp
+    llama-sampler.cpp
+    unicode.cpp
+    unicode-data.cpp
     ggml.c
     ggml-alloc.c
     ggml-backend.cpp
@@ -23,13 +35,6 @@ add_library(${PROJECT_NAME} SHARED
     gguf.cpp
     ggml-cpu.cpp
     ggml-opt.cpp
-    # Fichiers indispensables pour les versions récentes de llama.cpp
-    # Si vous les avez téléchargés, ils doivent être listés ici :
-    # llama-vocab.cpp
-    # llama-grammar.cpp
-    # llama-sampling.cpp
-    # unicode.cpp
-    # unicode-data.cpp
 )
 
 # Inclusion du dossier courant pour trouver les fichiers .h
