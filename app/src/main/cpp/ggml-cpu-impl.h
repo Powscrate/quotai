@@ -536,4 +536,8 @@ int  ggml_threadpool_chunk_add(struct ggml_threadpool * tp, int value);
 
 #ifdef __cplusplus
 }
+struct ggml_fa_tile_config {
+    static constexpr int Q  = 16;
+    static constexpr int KV = 32;
+};
 #endif

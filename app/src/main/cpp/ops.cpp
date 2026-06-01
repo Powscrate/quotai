@@ -2,6 +2,7 @@
 
 #include "ggml-cpu.h"
 #include "ggml-impl.h"
+#include "ggml-cpu-impl.h"
 #include "binary-ops.h"
 #include "simd-gemm.h"
 #include "ggml.h"
