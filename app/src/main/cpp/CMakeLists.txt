@@ -50,7 +50,6 @@ add_library(${PROJECT_NAME} SHARED
     repack.cpp
     common.cpp
     ops.cpp
-    spine-mem-pool.cpp
     vec.cpp
     fit.cpp
     log.cpp
