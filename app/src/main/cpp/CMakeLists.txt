@@ -40,6 +40,9 @@ add_library(${PROJECT_NAME} SHARED
     ggml.c
     ggml-alloc.c
     ggml-backend.cpp
+    # ggml-backend-cuda.cpp
+    # ggml-backend-metal.cpp
+    llama-version.cpp
     ggml-quants.c
     gguf.cpp
     ggml-cpu.cpp
