@@ -114,9 +114,3 @@ std::vector<enum common_sampler_type> common_sampler_types_from_chars(const std:
 
 llama_sampler * llama_sampler_init_llg(const llama_vocab * vocab,
                 const char * grammar_kind, const char * grammar_data);
-
-struct common_sampler_deleter {
-    void operator()(common_sampler * s) { common_sampler_free(s); }
-};
-
-typedef std::unique_ptr<common_sampler, common_sampler_deleter> common_sampler_ptr;
