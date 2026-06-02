@@ -13,7 +13,6 @@
 #include "vec.h"
 #include "ops.h"
 #include "ggml.h"
-#include "common.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
