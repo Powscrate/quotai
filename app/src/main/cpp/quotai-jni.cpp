@@ -8,6 +8,9 @@
 #include <android/log.h>
 
 #include "llama.h"
+#include "common.h"
+#include "sampling.h"
+
 
 #define LOG_TAG "QuotAI_JNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
