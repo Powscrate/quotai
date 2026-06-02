@@ -14,7 +14,10 @@ add_subdirectory(llama)  # OK MAIS CLEAN BUILD
 add_library(quotai-jni SHARED
     quotai-jni.cpp
 )
-
+target_include_directories(quotai-jni PRIVATE
+    llama/include
+    llama/common
+)
 target_link_libraries(quotai-jni
     llama
     android
