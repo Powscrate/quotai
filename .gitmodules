@@ -1,0 +1,3 @@
+[submodule "app/src/main/cpp/llama/vendor/cpp-httplib"]
+	path = app/src/main/cpp/llama/vendor/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git
