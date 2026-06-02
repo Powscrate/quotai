@@ -5,6 +5,10 @@ plugins {
   alias(libs.plugins.roborazzi)
 }
 
+ndk {
+    abiFilters += listOf("arm64-v8a")
+}
+
 android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
