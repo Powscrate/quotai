@@ -53,6 +53,10 @@
 #    include "ime.h"
 #endif
 
+// Tiling constants for Flash Attention
+#define GGML_FA_TILE_Q  32
+#define GGML_FA_TILE_KV 32
+
 // Note: once we move threading into a separate C++ file
 // will use std::hardware_destructive_interference_size instead of hardcoding it here
 // and we'll use C++ attribute syntax.
