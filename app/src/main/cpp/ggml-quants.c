@@ -1,3 +1,6 @@
+// Renamed from GGML-Quants.c to ggml-quants.c to match CMakeLists.txt case sensitivity
+// No changes to internal code needed for this fix.
+
 #define GGML_COMMON_IMPL_C
 #include "ggml-common.h"
 

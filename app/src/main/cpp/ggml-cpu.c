@@ -47,11 +47,11 @@
 #endif
 
 #ifdef GGML_USE_LLAMAFILE
-#include "llamafile/sgemm.h"
+#include "sgemm.h"
 #endif
 
 #ifdef GGML_USE_CPU_RISCV64_SPACEMIT
-#    include "spacemit/ime.h"
+#    include "ime.h"
 #endif
 
 // Note: once we move threading into a separate C++ file
