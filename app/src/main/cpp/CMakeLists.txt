@@ -15,11 +15,14 @@ add_library(quotai-jni SHARED
     quotai-jni.cpp
 )
 target_include_directories(quotai-jni PRIVATE
-    llama/include
-    llama/common
+    quotai-jni.cpp
+    llama/common/common.cpp
+    llama/common/sampling.cpp
 )
 target_link_libraries(quotai-jni
     llama
     android
     log
+    llama/include
+    llama/common
 )
