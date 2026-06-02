@@ -90,23 +90,16 @@ Java_com_example_llama_LlamaCpp_generateNative(
 
     llama_token tokens[2048];
 
-    int n_tokens = llama_tokenize(
-        lc->model,
-        prompt_str.c_str(),
-        prompt_str.size(),
-        tokens,
-        2048,
-        true,
-        true
-    );
+    std::vector<llama_token> tokens =
+    common_tokenize(ctx->ctx, prompt_str, true, true);
 
     llama_batch batch = llama_batch_init(2048, 0, 1);
 
     for (int i = 0; i < n_tokens; i++) {
-        llama_batch_add(batch, tokens[i], i, {0}, false);
+        common_batch_add(batch, token, pos, {0}, true);
     }
 
-    llama_batch_add(batch, 0, n_tokens, {0}, true);
+    common_batch_add(batch, token, pos, {0}, true);
 
     std::string result;
 
@@ -115,27 +108,30 @@ Java_com_example_llama_LlamaCpp_generateNative(
         if (llama_decode(lc->ctx, batch) != 0)
             break;
 
-        llama_token new_token = llama_sample_token_greedy(lc->ctx, lc->model);
+        common_sampler_ptr sampler(common_sampler_init(ctx->model, sparams));
+        llama_token new_token = common_sampler_sample(sampler.get(), ctx->ctx, -1);
+        common_sampler_accept(sampler.get(), new_token, true);
 
         if (llama_vocab_is_eog(llama_model_get_vocab(lc->model), new_token))
             break;
 
         char buf[256];
+        const char* vocab = llama_model_get_vocab(ctx->model);
         int n = llama_token_to_piece(
-            lc->model,
-            new_token,
-            buf,
-            sizeof(buf),
-            0,
-            true
-        );
+    vocab,
+    new_token,
+    buf,
+    sizeof(buf),
+    0,
+    true
+);
 
         if (n > 0) {
             result.append(buf, n);
         }
 
         batch = llama_batch_init(1, 0, 1);
-        llama_batch_add(batch, new_token, i, {0}, true);
+        common_batch_add(batch, token, pos, {0}, true);
     }
 
     return env->NewStringUTF(result.c_str());
