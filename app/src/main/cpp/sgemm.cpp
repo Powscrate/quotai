@@ -305,8 +305,7 @@ template <typename T, typename U> T load(const U *);
 template <> inline float32x4_t load(const float *p) {
     return vld1q_f32(p);
 }
-#if !defined(_MSC_VER) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-// FIXME: this should check for __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if !defined(_MSC_VER) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && defined(__aarch64__)
 template <> inline float16x8_t load(const ggml_fp16_t *p) {
     return vld1q_f16((const float16_t *)p);
 }
