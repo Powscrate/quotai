@@ -1,276 +1,144 @@
 #include <jni.h>
 #include <string>
 #include <vector>
-#include <random>
-#include <chrono>
-#include <algorithm>
 #include <thread>
 #include <android/log.h>
 
 #include "llama.h"
-#include "common.h"
-#include "sampling.h"
-
 
 #define LOG_TAG "QuotAI_JNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-/*
- * ============================================================================
- * 🛠️ HOW TO COMPILE llama.cpp FOR ANDROID (PRODUCTION DOCUMENTATION)
- * ============================================================================
- * 
- * To build llama.cpp as a shared or static library for Android (ARM64 and ARMv7),
- * follow these professional deployment instructions using the Android NDK:
- * 
- * 1. PREREQUISITES:
- *    - Android SDK & NDK (Bundle 25.x or newer).
- *    - CMake 3.22.1+ and Ninja Build.
- * 
- * 2. STANDALONE COMPILATION VIA CMAKE:
- *    Run the following script from your llama.cpp project root to build shared binaries:
- * 
- *    ```bash
- *    export NDK=$ANDROID_HOME/ndk/25.1.8937393 # Set your local NDK path
- *    
- *    # For 64-bit ARM (arm64-v8a) - Most modern devices
- *    cmake -H. -Bbuild_arm64 \
- *      -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
- *      -DANDROID_ABI=arm64-v8a \
- *      -DANDROID_PLATFORM=android-21 \
- *      -DGGML_OPENMP=OFF \
- *      -DGGML_NEON=ON \
- *      -DBUILD_SHARED_LIBS=ON \
- *      -DCMAKE_BUILD_TYPE=Release
- *    cmake --build build_arm64 --config Release
- * 
- *    # For 32-bit ARM (armeabi-v7a) - Legacy devices (like Redmi Note 3)
- *    cmake -H. -Bbuild_armv7 \
- *      -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
- *      -DANDROID_ABI=armeabi-v7a \
- *      -DANDROID_PLATFORM=android-21 \
- *      -DGGML_OPENMP=OFF \
- *      -DGGML_NEON=ON \
- *      -DANDROID_ARM_NEON=ON \
- *      -DBUILD_SHARED_LIBS=ON \
- *      -DCMAKE_BUILD_TYPE=Release
- *    cmake --build build_armv7 --config Release
- *    ```
- * 
- * 3. COPY BINARIES TO ANDROID PROJECT:
- *    Place the compiled shared libraries (`libllama.so` & `libggml.so`) into:
- *    `app/src/main/jniLibs/arm64-v8a/` and `app/src/main/jniLibs/armeabi-v7a/`.
- * 
- * 4. KEY OPTIMIZATIONS FOR MOBILE DEVICES:
- *    - MMAP Loading (-DGGML_USE_MMAP=ON): Allows mapping the GGUF model directly into memory-mapped space,
- *      releasing system memory pressure and using the Linux page cache. Prevents Out-Of-Memory (OOM) crashes.
- *    - Thread Constraints: Restrict thread count dynamically based on the device's CPU architecture.
- *      Do not exceed active physical core counts (e.g., 2 cores max on low-end dual-cluster designs).
- *    - FP16 & quantization (Q4_K_M, Q8_0): Ensure your model GGUF matches lower precision scales to reduce
- *      the key-value (KV) cache RAM footprint.
- * ============================================================================
- */
-
-// Structure native pour gérer le cycle de vie de llama.cpp
 struct LlamaContext {
-    std::string model_path;
     llama_model* model = nullptr;
     llama_context* ctx = nullptr;
 
     ~LlamaContext() {
-        if (ctx) {
-            llama_free(ctx);
-            ctx = nullptr;
-        }
-        if (model) {
-            llama_model_free(model);
-            model = nullptr;
-        }
+        if (ctx) llama_free(ctx);
+        if (model) llama_model_free(model);
     }
 };
 
-// Helper pour ajouter des tokens au batch
-static void batch_add(struct llama_batch & batch, llama_token id, llama_pos pos, const std::vector<llama_seq_id> & seq_ids, bool logits) {
-    batch.token[batch.n_tokens] = id;
-    batch.pos[batch.n_tokens]   = pos;
-    batch.n_seq_id[batch.n_tokens] = seq_ids.size();
-    for (size_t i = 0; i < seq_ids.size(); ++i) {
-        batch.seq_id[batch.n_tokens][i] = seq_ids[i];
-    }
-    batch.logits[batch.n_tokens] = logits;
-    batch.n_tokens++;
-}
-
 extern "C" {
 
-// EXPOSED JNI METHOD FOR MODEL LOADING
 JNIEXPORT jlong JNICALL
 Java_com_example_llama_LlamaCpp_loadModelNative(
         JNIEnv *env,
-        jobject thiz,
+        jobject,
         jstring path,
         jint context_size,
         jboolean low_mem) {
 
-    static bool backend_initialized = false;
-    if (!backend_initialized) {
-        llama_backend_init();
-        backend_initialized = true;
-        LOGI("loadModelNative - llama.cpp backend initialisé.");
-    }
-
-    if (path == nullptr) {
-        LOGE("loadModelNative - Model path argument is null.");
-        return 0;
-    }
+    llama_backend_init();
 
     const char *native_path = env->GetStringUTFChars(path, nullptr);
-    LOGI("loadModelNative - Chargement du modèle : %s", native_path);
 
-    // 1. Paramètres du modèle
-    auto model_params = llama_model_default_params();
-    model_params.use_mmap = true;
+    llama_model_params mparams = llama_model_default_params();
+    mparams.use_mmap = true;
 
-    // 2. Chargement du modèle
-    llama_model * model = llama_model_load_from_file(native_path, model_params);
+    llama_model *model = llama_model_load_from_file(native_path, mparams);
     if (!model) {
-        LOGE("loadModelNative - Impossible de charger le modèle.");
         env->ReleaseStringUTFChars(path, native_path);
         return 0;
     }
 
-    // 3. Paramètres du contexte
-    auto ctx_params = llama_context_default_params();
-    ctx_params.n_ctx = context_size;
-    ctx_params.n_batch = context_size;
-    ctx_params.n_threads = (int32_t)std::thread::hardware_concurrency();
-    if (low_mem) {
-        ctx_params.n_threads = std::max(1, (int)ctx_params.n_threads / 2);
-    }
+    llama_context_params cparams = llama_context_default_params();
+    cparams.n_ctx = context_size;
+    cparams.n_threads = std::max(1, (int)std::thread::hardware_concurrency() / (low_mem ? 2 : 1));
 
-    // 4. Création du contexte
-    llama_context * ctx_llama = llama_init_from_model(model, ctx_params);
-    if (!ctx_llama) {
-        LOGE("loadModelNative - Impossible de créer le contexte.");
+    llama_context *ctx = llama_init_from_model(model, cparams);
+    if (!ctx) {
         llama_model_free(model);
         env->ReleaseStringUTFChars(path, native_path);
         return 0;
     }
 
-    LlamaContext* ctx = new LlamaContext();
-    ctx->model_path = std::string(native_path);
-    ctx->model = model;
-    ctx->ctx = ctx_llama;
-
-    LOGI("loadModelNative - Succès : address=0x%llX", (unsigned long long)ctx);
+    auto *wrapper = new LlamaContext();
+    wrapper->model = model;
+    wrapper->ctx = ctx;
 
     env->ReleaseStringUTFChars(path, native_path);
-    return reinterpret_cast<jlong>(ctx);
+    return (jlong)wrapper;
 }
 
-// EXPOSED JNI METHOD FOR MODEL UNLOADING (CLEAN CYCLE)
 JNIEXPORT void JNICALL
 Java_com_example_llama_LlamaCpp_unloadModelNative(
-        JNIEnv *env,
-        jobject thiz,
-        jlong ctx_address) {
-    if (ctx_address == 0) {
-        LOGW("unloadModelNative - Attempted to unload an empty model address.");
-        return;
-    }
+        JNIEnv *,
+        jobject,
+        jlong ptr) {
 
-    LlamaContext* ctx = reinterpret_cast<LlamaContext*>(ctx_address);
-    LOGI("unloadModelNative - Unloading GGUF llama structures from native heap (address 0x%llX)", (unsigned long long)ctx);
-    
-    delete ctx;
-    
-    LOGI("unloadModelNative - Native heap released. Memory isolation successful.");
+    delete (LlamaContext*)ptr;
 }
 
-// EXPOSED JNI METHOD FOR STREAMING GENERATION (TOKEN BY TOKEN CALLBACK BRIDGE)
 JNIEXPORT jstring JNICALL
 Java_com_example_llama_LlamaCpp_generateNative(
         JNIEnv *env,
-        jobject thiz,
-        jlong ctx_address,
-        jlong seed,
+        jobject,
+        jlong ptr,
+        jlong,
         jstring prompt,
         jint max_tokens,
-        jboolean low_mem) {
+        jboolean) {
 
-    if (ctx_address == 0) {
-        LOGE("generateNative - Native model address is null.");
-        return env->NewStringUTF("");
+    auto *lc = (LlamaContext*)ptr;
+
+    const char *c_prompt = env->GetStringUTFChars(prompt, nullptr);
+
+    const std::string prompt_str = c_prompt;
+    env->ReleaseStringUTFChars(prompt, c_prompt);
+
+    llama_token tokens[2048];
+
+    int n_tokens = llama_tokenize(
+        lc->model,
+        prompt_str.c_str(),
+        prompt_str.size(),
+        tokens,
+        2048,
+        true,
+        true
+    );
+
+    llama_batch batch = llama_batch_init(2048, 0, 1);
+
+    for (int i = 0; i < n_tokens; i++) {
+        llama_batch_add(batch, tokens[i], i, {0}, false);
     }
 
-    if (prompt == nullptr) {
-        return env->NewStringUTF("");
-    }
+    llama_batch_add(batch, 0, n_tokens, {0}, true);
 
-    LlamaContext* ctx = reinterpret_cast<LlamaContext*>(ctx_address);
+    std::string result;
 
-    const char *native_prompt = env->GetStringUTFChars(prompt, nullptr);
-    std::string prompt_str(native_prompt);
-    env->ReleaseStringUTFChars(prompt, native_prompt);
+    for (int i = 0; i < max_tokens; i++) {
 
-    // 1. Tokenisation
-    std::vector<llama_token> tokens_list = common_tokenize(ctx->ctx, prompt_str, true, true);
-    if (tokens_list.empty()) return env->NewStringUTF("");
+        if (llama_decode(lc->ctx, batch) != 0)
+            break;
 
-    // 2. Initialisation du Batch
-    llama_batch batch = llama_batch_init(tokens_list.size() + max_tokens, 0, 1);
-    for (size_t i = 0; i < tokens_list.size(); ++i) {
-        common_batch_add(batch, tokens_list[i], i, {0}, i == tokens_list.size() - 1);
-    }
+        llama_token new_token = llama_sample_token_greedy(lc->ctx, lc->model);
 
-    // 3. Setup Callback
-    jclass clazz = env->FindClass("com/example/llama/LlamaCpp");
-    jmethodID on_token_received_mid = clazz ? env->GetStaticMethodID(clazz, "onTokenReceived", "(Ljava/lang/String;)V") : nullptr;
-    
-    // Setup Sampler (Greedy)
-    auto sparams = common_params_sampling();
-    sparams.temp = low_mem ? 0.0f : 0.8f; // Sample greedily in low_mem, otherwise with variation
-    sparams.top_k = 40;
-    sparams.top_p = 0.95f;
-    common_sampler_ptr gsmpl(common_sampler_init(ctx->model, sparams));
+        if (llama_vocab_is_eog(llama_model_get_vocab(lc->model), new_token))
+            break;
 
-    // 4. Boucle d'inférence
-    std::string full_res = "";
-    int n_cur = tokens_list.size();
-    int n_decode = 0;
+        char buf[256];
+        int n = llama_token_to_piece(
+            lc->model,
+            new_token,
+            buf,
+            sizeof(buf),
+            0,
+            true
+        );
 
-    while (n_decode < max_tokens && n_cur < llama_n_ctx(ctx->ctx)) {
-        if (llama_decode(ctx->ctx, batch) != 0) break;
-
-        batch.n_tokens = 0; // Réinitialisation du batch pour le token suivant
-
-        // Sampling
-        const llama_token new_id = common_sampler_sample(gsmpl.get(), ctx->ctx, -1);
-        common_sampler_accept(gsmpl.get(), new_id, true);
-
-        // Fin de génération ?
-        if (llama_vocab_is_eog(llama_model_get_vocab(ctx->model), new_id)) break;
-
-        char buf[128];
-        int n = llama_token_to_piece(llama_model_get_vocab(ctx->model), new_id, buf, sizeof(buf), 0, true);
         if (n > 0) {
-            std::string piece(buf, n);
-            full_res += piece;
-            if (on_token_received_mid) {
-                jstring jpiece = env->NewStringUTF(piece.c_str());
-                env->CallStaticVoidMethod(clazz, on_token_received_mid, jpiece);
-                env->DeleteLocalRef(jpiece);
-            }
+            result.append(buf, n);
         }
 
-        common_batch_add(batch, new_id, n_cur, {0}, true);
-        n_cur++; n_decode++;
+        batch = llama_batch_init(1, 0, 1);
+        llama_batch_add(batch, new_token, i, {0}, true);
     }
 
-    llama_batch_free(batch);
-    return env->NewStringUTF(full_res.c_str());
+    return env->NewStringUTF(result.c_str());
 }
 
 }
