@@ -15,11 +15,11 @@
 #endif
 
 #ifdef GGML_USE_CPU_KLEIDIAI
-#    include "kleidiai/kleidiai.h"
+#    include "kleidiai.h"
 #endif
 
 #ifdef GGML_USE_CPU_RISCV64_SPACEMIT
-#    include "spacemit/ime.h"
+#    include "ime.h"
 #endif
 
 #if defined(_WIN32)

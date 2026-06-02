@@ -42,6 +42,7 @@ add_library(${PROJECT_NAME} SHARED
     ggml-alloc.c
     ggml-backend.cpp
     ggml-backend-reg.cpp
+    ggml-backend-dl.cpp
     llama-version.cpp
     gguf.cpp
     ggml-cpu.cpp
@@ -64,6 +65,7 @@ add_library(${PROJECT_NAME} SHARED
     traits.cpp
     unary-ops.cpp
     hbm.cpp
+    sgemm.cpp
 )
 
 # Ajout des fichiers RISC-V uniquement si l'architecture correspond

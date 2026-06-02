@@ -213,17 +213,13 @@ Java_com_example_llama_LlamaCpp_generateNative(
     env->ReleaseStringUTFChars(prompt, native_prompt);
 
     // 1. Tokenisation
-    auto vocab = llama_model_get_vocab(ctx->model);
-    std::vector<llama_token> tokens_list(prompt_str.size() + 2);
-    int n_tokens = llama_tokenize(vocab, prompt_str.c_str(), prompt_str.size(), 
-                                 tokens_list.data(), tokens_list.size(), true, true);
-    if (n_tokens < 0) return env->NewStringUTF("");
-    tokens_list.resize(n_tokens);
+    std::vector<llama_token> tokens_list = common_tokenize(ctx->ctx, prompt_str, true, true);
+    if (tokens_list.empty()) return env->NewStringUTF("");
 
     // 2. Initialisation du Batch
-    llama_batch batch = llama_batch_init(std::max(n_tokens, max_tokens), 0, 1);
+    llama_batch batch = llama_batch_init(tokens_list.size() + max_tokens, 0, 1);
     for (size_t i = 0; i < tokens_list.size(); ++i) {
-        batch_add(batch, tokens_list[i], i, {0}, i == tokens_list.size() - 1);
+        common_batch_add(batch, tokens_list[i], i, {0}, i == tokens_list.size() - 1);
     }
 
     // 3. Setup Callback
@@ -231,7 +227,11 @@ Java_com_example_llama_LlamaCpp_generateNative(
     jmethodID on_token_received_mid = clazz ? env->GetStaticMethodID(clazz, "onTokenReceived", "(Ljava/lang/String;)V") : nullptr;
     
     // Setup Sampler (Greedy)
-    struct llama_sampler * smpl = llama_sampler_init_greedy();
+    auto sparams = common_params_sampling();
+    sparams.temp = low_mem ? 0.0f : 0.8f; // Sample greedily in low_mem, otherwise with variation
+    sparams.top_k = 40;
+    sparams.top_p = 0.95f;
+    common_sampler_ptr gsmpl(common_sampler_init(ctx->model, sparams));
 
     // 4. Boucle d'inférence
     std::string full_res = "";
@@ -244,13 +244,14 @@ Java_com_example_llama_LlamaCpp_generateNative(
         batch.n_tokens = 0; // Réinitialisation du batch pour le token suivant
 
         // Sampling
-        const llama_token new_id = llama_sampler_sample(smpl, ctx->ctx, -1);
+        const llama_token new_id = common_sampler_sample(gsmpl.get(), ctx->ctx, -1);
+        common_sampler_accept(gsmpl.get(), new_id, true);
 
         // Fin de génération ?
-        if (llama_vocab_is_eog(vocab, new_id)) break;
+        if (llama_vocab_is_eog(llama_model_get_vocab(ctx->model), new_id)) break;
 
         char buf[128];
-        int n = llama_token_to_piece(vocab, new_id, buf, sizeof(buf), 0, true);
+        int n = llama_token_to_piece(llama_model_get_vocab(ctx->model), new_id, buf, sizeof(buf), 0, true);
         if (n > 0) {
             std::string piece(buf, n);
             full_res += piece;
@@ -261,12 +262,11 @@ Java_com_example_llama_LlamaCpp_generateNative(
             }
         }
 
-        batch_add(batch, new_id, n_cur, {0}, true);
+        common_batch_add(batch, new_id, n_cur, {0}, true);
         n_cur++; n_decode++;
     }
 
     llama_batch_free(batch);
-    llama_sampler_free(smpl);
     return env->NewStringUTF(full_res.c_str());
 }
 

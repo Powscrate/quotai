@@ -851,3 +851,7 @@ std::vector<common_sampler_type> common_sampler_types_from_chars(const std::stri
 
     return samplers;
 }
+
+void common_sampler_deleter::operator()(common_sampler * sampler) const {
+    common_sampler_free(sampler);
+}
