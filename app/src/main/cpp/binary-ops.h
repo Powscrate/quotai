@@ -4,6 +4,7 @@
 #include "ggml-cpu-impl.h"
 
 #ifdef __cplusplus
+#include <vector>
 #include <type_traits>
 #include <utility>
 #include <algorithm>

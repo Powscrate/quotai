@@ -30,6 +30,11 @@ add_library(${PROJECT_NAME} SHARED
     llama-mmap.cpp
     llama-batch.cpp
     llama-kv-cache.cpp
+    llama-kv-cache-iswa.cpp
+    llama-kv-cache-dsa.cpp
+    llama-memory-recurrent.cpp
+    llama-memory-hybrid.cpp
+    llama-memory-hybrid-iswa.cpp
     llama-hparams.cpp
     llama-arch.cpp
     llama-vocab.cpp
